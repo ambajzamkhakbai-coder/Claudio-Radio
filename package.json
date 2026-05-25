@@ -1,0 +1,29 @@
+{
+  "name": "micdio-claudio",
+  "version": "1.0.0",
+  "description": "个人 AI 音乐电台 (Micdio / Claudio)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "ai",
+    "radio",
+    "music",
+    "gemini",
+    "tts",
+    "pwa"
+  ],
+  "author": "Antigravity",
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "NeteaseCloudMusicApi": "^4.32.0",
+    "node-cron": "^3.0.3",
+    "ws": "^8.18.0"
+  }
+}
