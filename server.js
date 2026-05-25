@@ -330,6 +330,22 @@ app.post('/api/taste/generate-weekly', async (req, res) => {
   }
 });
 
+// --- 4.5. 收藏歌曲持久化 (GET / POST /api/favorites) ---
+app.get('/api/favorites', (req, res) => {
+  res.json({ songs: db.getFavorites() });
+});
+
+app.post('/api/favorites', (req, res) => {
+  const { songs } = req.body;
+
+  if (!Array.isArray(songs)) {
+    return res.status(400).json({ error: 'favorites songs must be an array.' });
+  }
+
+  const savedSongs = db.setFavorites(songs);
+  res.json({ success: true, songs: savedSongs });
+});
+
 // --- 5. 秘钥与偏好设置 (GET / POST /api/settings) ---
 app.get('/api/settings', async (req, res) => {
   const preferences = db.getAllPreferences();

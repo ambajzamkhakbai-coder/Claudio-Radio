@@ -2,6 +2,7 @@
 let currentTab = 'player';
 let ws = null;
 let activeSong = null;
+let favoriteSongs = [];
 
 // 音频双引擎
 const ttsAudio = new Audio();
@@ -105,9 +106,21 @@ function initTheme() {
 initTheme();
 
 // ==================== 2.6. 收藏歌曲 FAV ====================
-function getFavoriteSongs() {
+function normalizeFavoriteSongs(songs) {
+  const seen = new Set();
+  return (Array.isArray(songs) ? songs : [])
+    .filter(song => song && song.id && !seen.has(String(song.id)) && seen.add(String(song.id)))
+    .map(song => ({
+      id: String(song.id),
+      name: song.name || '未知歌曲',
+      artist: song.artist || '未知歌手',
+      savedAt: song.savedAt || Date.now()
+    }));
+}
+
+function readLocalFavoriteSongs() {
   try {
-    return JSON.parse(localStorage.getItem('claudio-favorites') || '[]');
+    return normalizeFavoriteSongs(JSON.parse(localStorage.getItem('claudio-favorites') || '[]'));
   } catch (err) {
     console.warn('[Favorites] Failed to parse favorites, resetting.', err);
     localStorage.setItem('claudio-favorites', '[]');
@@ -115,8 +128,63 @@ function getFavoriteSongs() {
   }
 }
 
-function saveFavoriteSongs(songs) {
-  localStorage.setItem('claudio-favorites', JSON.stringify(songs));
+function getFavoriteSongs() {
+  return favoriteSongs;
+}
+
+function saveFavoriteSongs(songs, options = {}) {
+  const { persist = true } = options;
+  favoriteSongs = normalizeFavoriteSongs(songs);
+  localStorage.setItem('claudio-favorites', JSON.stringify(favoriteSongs));
+
+  if (persist) {
+    syncFavoriteSongsToServer(favoriteSongs);
+  }
+}
+
+async function syncFavoriteSongsToServer(songs) {
+  try {
+    const response = await fetch('/api/favorites', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ songs })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Favorites sync failed with ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (Array.isArray(data.songs)) {
+      saveFavoriteSongs(data.songs, { persist: false });
+    }
+  } catch (err) {
+    console.warn('[Favorites] Server sync failed; local cache retained.', err);
+  }
+}
+
+async function hydrateFavoriteSongs() {
+  const localSongs = readLocalFavoriteSongs();
+  saveFavoriteSongs(localSongs, { persist: false });
+  renderFavoriteSongs();
+
+  try {
+    const response = await fetch('/api/favorites');
+    if (!response.ok) {
+      throw new Error(`Favorites load failed with ${response.status}`);
+    }
+
+    const data = await response.json();
+    const serverSongs = normalizeFavoriteSongs(data.songs);
+    if (serverSongs.length > 0) {
+      saveFavoriteSongs(serverSongs, { persist: false });
+    } else if (localSongs.length > 0) {
+      await syncFavoriteSongsToServer(localSongs);
+    }
+    renderFavoriteSongs();
+  } catch (err) {
+    console.warn('[Favorites] Server load failed; using local cache.', err);
+  }
 }
 
 function isFavoriteSong(songId) {
@@ -226,7 +294,7 @@ if (DOM.btnFavToggle) {
   DOM.btnFavToggle.addEventListener('click', toggleFavoritePanel);
 }
 
-renderFavoriteSongs();
+hydrateFavoriteSongs();
 
 // ==================== 3. 复古电子点阵时钟驱动 ====================
 function updateClock() {

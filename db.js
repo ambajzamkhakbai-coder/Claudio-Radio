@@ -7,6 +7,7 @@ const DB_FILE = path.join(__dirname, 'state.json');
 let dbData = {
   messages: [],      // 历史对话：{ role: 'user'|'model', content: string, timestamp: number }
   plays: [],         // 播放记录：{ id: string, name: string, artist: string, playedAt: number, skip: boolean }
+  favorites: [],     // 收藏歌曲，服务端持久化，避免浏览器或服务重启后丢失
   preferences: {     // 用户偏好及系统配置
     neteaseCookie: '',
     geminiApiKey: '',
@@ -25,6 +26,7 @@ function loadDb() {
       // 兼容性修正，确保基础结构完备
       if (!dbData.messages) dbData.messages = [];
       if (!dbData.plays) dbData.plays = [];
+      if (!dbData.favorites) dbData.favorites = [];
       if (!dbData.preferences) dbData.preferences = {};
     } else {
       saveDb();
@@ -90,6 +92,25 @@ const db = {
       dbData.plays.shift();
     }
     saveDb();
+  },
+
+  // --- 收藏歌曲管理 ---
+  getFavorites: () => {
+    return dbData.favorites;
+  },
+
+  setFavorites: (songs = []) => {
+    const seen = new Set();
+    dbData.favorites = songs
+      .filter(song => song && song.id && !seen.has(String(song.id)) && seen.add(String(song.id)))
+      .map(song => ({
+        id: String(song.id),
+        name: song.name || 'Unknown Track',
+        artist: song.artist || 'Unknown Artist',
+        savedAt: song.savedAt || Date.now()
+      }));
+    saveDb();
+    return dbData.favorites;
   },
 
   // --- 用户配置/Cookie 管理 ---
