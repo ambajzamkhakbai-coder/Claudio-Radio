@@ -1,20 +1,27 @@
 node_modules/
 
+# Local secrets and per-machine overrides
 .env
 .env.local
 .env.*.local
 
+# Runtime logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Build outputs
 coverage/
 dist/
 build/
 
+# Runtime-generated data that may contain API keys, cookies, or caches
 public/cache/
 state.json
+
+# Local-only reference assets
+设计参考/
 
 .DS_Store
 Thumbs.db
