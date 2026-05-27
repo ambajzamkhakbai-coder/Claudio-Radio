@@ -945,13 +945,23 @@ DOM.btnSaveKeys.addEventListener('click', async () => {
       body: JSON.stringify({ geminiApiKey, geminiApiBase, fishAudioApiKey })
     });
     const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || `保存失败：HTTP ${response.status}`);
+    }
+
     if (data.success) {
-      DOM.keysSaveStatus.textContent = '✓ 秘钥配置已保存';
-      setTimeout(() => DOM.keysSaveStatus.textContent = '', 3000);
+      DOM.keysSaveStatus.textContent = `✓ ${data.message || '密钥配置已保存'}`;
+      DOM.keysSaveStatus.title = data.savedFields && data.savedFields.length
+        ? `已写入 ${data.envFile || '.env'}：${data.savedFields.join(', ')}`
+        : '';
+      setTimeout(() => {
+        DOM.keysSaveStatus.textContent = '';
+        DOM.keysSaveStatus.title = '';
+      }, 6000);
       loadSettings();
     }
   } catch (err) {
-    DOM.keysSaveStatus.textContent = '✗ 保存失败';
+    DOM.keysSaveStatus.textContent = `✗ ${err.message || '保存失败'}`;
   }
 });
 

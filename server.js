@@ -16,6 +16,7 @@ const app = express();
 const server = http.createServer(app);
 
 const PORT = process.env.PORT || 8080;
+const ENV_FILE = path.join(__dirname, '.env');
 
 // 开启 JSON 及 Form 数据解析能力
 app.use(express.json());
@@ -35,6 +36,40 @@ app.use(express.static(path.join(__dirname, 'public'), {
 
 // 全局预加载数据内存双缓冲区
 let prefetchCache = null;
+
+function serializeEnvValue(value) {
+  const normalized = String(value || '');
+  if (/[\s#"'=]/.test(normalized)) {
+    return JSON.stringify(normalized);
+  }
+  return normalized;
+}
+
+function updateEnvFile(updates) {
+  if (!updates || Object.keys(updates).length === 0) return;
+
+  const existing = fs.existsSync(ENV_FILE) ? fs.readFileSync(ENV_FILE, 'utf8') : '';
+  const lines = existing ? existing.split(/\r?\n/) : [];
+  const pending = new Map(Object.entries(updates));
+  const nextLines = lines.map(line => {
+    const match = line.match(/^([A-Z0-9_]+)=/);
+    if (!match || !pending.has(match[1])) return line;
+
+    const key = match[1];
+    const value = pending.get(key);
+    pending.delete(key);
+    return `${key}=${serializeEnvValue(value)}`;
+  });
+
+  for (const [key, value] of pending.entries()) {
+    if (nextLines.length && nextLines[nextLines.length - 1] !== '') {
+      nextLines.push('');
+    }
+    nextLines.push(`${key}=${serializeEnvValue(value)}`);
+  }
+
+  fs.writeFileSync(ENV_FILE, nextLines.join('\n').replace(/\n*$/, '\n'), 'utf8');
+}
 
 // 辅助方法：拼装完整的播放数据（含 Netease 音频直链与 Fish Audio TTS）
 async function compilePlayPackage(brainResult) {
@@ -364,12 +399,44 @@ app.get('/api/settings', async (req, res) => {
 
 app.post('/api/settings', (req, res) => {
   const { geminiApiKey, geminiApiBase, fishAudioApiKey } = req.body;
+  const savedFields = [];
+  const envUpdates = {};
   
-  if (typeof geminiApiKey === 'string') db.setPreference('geminiApiKey', geminiApiKey);
-  if (typeof geminiApiBase === 'string') db.setPreference('geminiApiBase', geminiApiBase);
-  if (typeof fishAudioApiKey === 'string') db.setPreference('fishAudioApiKey', fishAudioApiKey);
+  if (typeof geminiApiKey === 'string') {
+    db.setPreference('geminiApiKey', geminiApiKey);
+    envUpdates.GEMINI_API_KEY = geminiApiKey;
+    savedFields.push('GEMINI_API_KEY');
+  }
+  if (typeof geminiApiBase === 'string') {
+    db.setPreference('geminiApiBase', geminiApiBase);
+    envUpdates.GEMINI_API_BASE = geminiApiBase;
+    savedFields.push('GEMINI_API_BASE');
+  }
+  if (typeof fishAudioApiKey === 'string') {
+    db.setPreference('fishAudioApiKey', fishAudioApiKey);
+    envUpdates.FISH_AUDIO_API_KEY = fishAudioApiKey;
+    savedFields.push('FISH_AUDIO_API_KEY');
+  }
+
+  try {
+    updateEnvFile(envUpdates);
+  } catch (err) {
+    console.error('[Settings] Failed to write .env:', err.message);
+    return res.status(500).json({
+      success: false,
+      error: `设置已保存到运行状态，但写入 .env 失败：${err.message}`,
+      savedFields
+    });
+  }
   
-  res.json({ success: true, message: 'Settings updated successfully.' });
+  res.json({
+    success: true,
+    message: savedFields.length
+      ? `已保存 ${savedFields.join(', ')}，并写入 .env 配置文件。`
+      : '没有新的配置需要保存。',
+    savedFields,
+    envFile: '.env'
+  });
 });
 
 // --- 6. 网易云 Cookie 保存路由 ---
