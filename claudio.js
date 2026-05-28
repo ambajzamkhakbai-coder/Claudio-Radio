@@ -85,9 +85,12 @@ function isExplicitMusicRequest(text) {
   const normalized = text.toLowerCase();
   return [
     /推荐.*(歌|音乐|曲|歌单)/,
+    /(歌|音乐|曲|歌单).*(推荐|列表|清单|候选|来几首|给几首)/,
+    /(有没有|有什么|来点|给点|整点).*(歌|音乐|曲|歌单)/,
+    /(让我看看|给我看看|看看).*(推荐|列表|歌单|候选)/,
     /(想听|要听|听点|听首|听歌|播放|放点|放首|帮我放|给我放|来首|来点|点一首|点歌)/,
     /(音乐|歌曲|歌单|旋律).*(推荐|来点|安排|放|听)/,
-    /(治愈|轻松|舒缓|提神|专注|睡前|摇滚|民谣|爵士|电子|纯音乐|lofi|lo-fi).*(歌|音乐|曲)/
+    /(抒情|开心|伤感|治愈|轻松|舒缓|提神|专注|睡前|摇滚|民谣|爵士|电子|纯音乐|lofi|lo-fi).*(歌|音乐|曲)/
   ].some(pattern => pattern.test(normalized));
 }
 
@@ -135,9 +138,7 @@ function normalizeBrainResult(resultObj, inputContext) {
       resultObj.play.length >= 3 ? resultObj.play : resultObj.play.concat(availableSongs),
       3
     );
-    if (!resultObj.say) {
-      resultObj.say = '我先给你挑三首不同气质的歌，你选一首，我们再开播。';
-    }
+    resultObj.say = '给你三首，点歌名就能播放。';
     resultObj.reason = resultObj.reason || '听众明确表达了听歌意愿，返回候选歌曲供选择';
   }
 
@@ -191,7 +192,7 @@ function generateLocalSimReply(inputContext) {
       const candidates = pickSongCandidates(songs, 3);
       return {
         intent: 'recommend',
-        say: `收到，我先不直接切歌。给你挑了三首适合此刻的歌，你选一首，我再为你播放。`,
+        say: '给你三首，点歌名就能播放。',
         play: candidates,
         reason: '听众明确表达了听歌意愿，本地大脑返回候选歌曲供选择。',
         segue: 'crossfade'
@@ -202,7 +203,7 @@ function generateLocalSimReply(inputContext) {
       sayContent = `听到你说有点累，我先不急着切歌。我们就在这里慢一点，先把肩膀放下来，喝口水也算一种小型重启。你想聊聊卡住的地方，还是只想让我陪你安静一会儿？`;
       reason = '听众表达了疲惫和压力，但没有明确要求听歌，因此只进行闲聊安慰。';
     } else {
-      sayContent = `收到你的留言：“${userInput}”。我在呢，可以陪你聊代码、生活、天气，或者任何忽然冒出来的小念头。等你真的想听歌时，我再给你挑几首让你选。`;
+      sayContent = `收到你的留言：“${userInput}”。我在呢，可以陪你聊生活、心情、产品、天气，或者任何忽然冒出来的小念头。想听歌时直接说，我再给你列歌单。`;
       reason = '听众进行普通闲聊，本地大脑只回复文本，不切歌。';
     }
 

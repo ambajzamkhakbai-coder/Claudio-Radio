@@ -62,6 +62,19 @@ function extractDirectSongQuery(input) {
   return '';
 }
 
+function isRecommendationRequest(input) {
+  const text = (input || '').trim().toLowerCase();
+  if (!text) return false;
+
+  return [
+    /推荐.*(歌|音乐|曲|歌单)/,
+    /(歌|音乐|曲|歌单).*(推荐|列表|清单|候选|来几首|给几首)/,
+    /(有没有|有什么|来点|给点|整点).*(歌|音乐|曲|歌单).*推荐?/,
+    /(让我看看|给我看看|看看).*(推荐|列表|歌单|候选)/,
+    /(抒情|开心|伤感|治愈|轻松|舒缓|提神|专注|睡前|摇滚|民谣|爵士|电子|纯音乐|lofi|lo-fi).*(歌|音乐|曲).*(推荐|一下|几首)?/
+  ].some(pattern => pattern.test(text));
+}
+
 /**
  * 核心意图分流处理方法
  * @param {Object} options
@@ -117,7 +130,9 @@ async function route(options = {}) {
   const promptPackage = context.assemblePrompt({
     userInput: inputStr || undefined,
     weatherData,
-    triggerSource: inputStr ? '用户对话触发' : '系统电台调度',
+    triggerSource: inputStr
+      ? (isRecommendationRequest(inputStr) ? '用户明确要求推荐歌曲列表' : '用户对话触发')
+      : '系统电台调度',
     lastSong
   });
 

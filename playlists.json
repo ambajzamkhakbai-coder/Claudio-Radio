@@ -76,6 +76,16 @@
         }
       ]
     },
+    "wang_sulong_2026_tour": {
+      "name": "汪苏泷2026「明日世界」世界巡回演唱会",
+      "description": "用户指定加入 Claudio 电台的网易云歌单。",
+      "neteasePlaylists": [
+        {
+          "id": "17855291524",
+          "name": "汪苏泷2026「明日世界」世界巡回演唱会"
+        }
+      ]
+    },
     "netease_top_playlists": {
       "name": "网易云高播放高收藏歌单",
       "description": "按播放量和收藏量综合筛选加入电台的网易云热门歌单。",

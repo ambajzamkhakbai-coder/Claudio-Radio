@@ -1,5 +1,6 @@
 require('dotenv').config();
 const http = require('http');
+const net = require('net');
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
@@ -36,6 +37,22 @@ app.use(express.static(path.join(__dirname, 'public'), {
 
 // 全局预加载数据内存双缓冲区
 let prefetchCache = null;
+
+function isTcpPortOpen(port, host = '127.0.0.1') {
+  return new Promise(resolve => {
+    const socket = net.createConnection({ port, host });
+    socket.setTimeout(800);
+    socket.once('connect', () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once('timeout', () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.once('error', () => resolve(false));
+  });
+}
 
 function serializeEnvValue(value) {
   const normalized = String(value || '');
@@ -167,6 +184,9 @@ app.post('/api/chat', async (req, res) => {
           reason: '用户搜歌直连',
           segue: 'ducking'
         });
+        if (directPackage.say) {
+          db.addMessage('model', directPackage.say);
+        }
         db.addPlay(directPackage.song.id, directPackage.song.name, directPackage.song.artist);
         return res.json({ intent: 'play', ...directPackage });
       } else {
@@ -244,6 +264,9 @@ app.post('/api/pick', async (req, res) => {
       reason: `用户从候选列表中手动选择了《${songName}》`,
       segue: 'crossfade'
     });
+    if (songName) {
+      db.addMessage('user', `从推荐列表选择播放《${songName}》${songArtist ? ` - ${songArtist}` : ''}`);
+    }
     db.addPlay(playPackage.song.id, playPackage.song.name, playPackage.song.artist);
     res.json({ intent: 'play', ...playPackage });
   } catch (err) {
@@ -470,8 +493,14 @@ server.listen(PORT, () => {
   console.log(`======================================================\n`);
 
   // 一体化自动在后台拉起本地网易云 API 服务，实现完全的"免配置一键运行"
-  setTimeout(() => {
+  setTimeout(async () => {
     try {
+      const ncmApiRunning = await isTcpPortOpen(3000);
+      if (ncmApiRunning) {
+        console.log('[NCM API] Local NeteaseCloudMusicApi already running on http://localhost:3000. Reusing it.');
+        return;
+      }
+
       console.log('[NCM API] Attempting to auto-start local NeteaseCloudMusicApi...');
       const { serveNcmApi } = require('NeteaseCloudMusicApi');
       serveNcmApi({ port: 3000 })
